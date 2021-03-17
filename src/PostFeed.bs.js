@@ -3,6 +3,8 @@
 import * as Post from "./post.bs.js";
 import * as Curry from "bs-platform/lib/es6/curry.js";
 import * as React from "react";
+import * as Button from "./Button.bs.js";
+import * as Caml_obj from "bs-platform/lib/es6/caml_obj.js";
 import * as Belt_Array from "bs-platform/lib/es6/belt_Array.js";
 import * as Caml_option from "bs-platform/lib/es6/caml_option.js";
 import * as Belt_MapString from "bs-platform/lib/es6/belt_MapString.js";
@@ -11,14 +13,44 @@ function s(prim) {
   return prim;
 }
 
+function reducer(state, action) {
+  switch (action.TAG | 0) {
+    case /* DeleteLater */0 :
+        var forDeletion = Belt_MapString.set(state.forDeletion, Post.id(action._0), action._1);
+        return {
+                posts: state.posts,
+                forDeletion: forDeletion
+              };
+    case /* DeleteAbort */1 :
+        var forDeletion$1 = Belt_MapString.remove(state.forDeletion, Post.id(action._0));
+        return {
+                posts: state.posts,
+                forDeletion: forDeletion$1
+              };
+    case /* DeleteNow */2 :
+        var post = action._0;
+        var forDeletion$2 = Belt_MapString.remove(state.forDeletion, Post.id(post));
+        var pos = state.posts.findIndex(function (item) {
+              return Caml_obj.caml_equal(item, post);
+            });
+        state.posts.splice(pos, 1);
+        return {
+                posts: state.posts,
+                forDeletion: forDeletion$2
+              };
+    
+  }
+}
+
 function PostFeed$PostItem(Props) {
   var post = Props.post;
   var dispatch = Props.dispatch;
   var title = Post.title(post);
   var author = Post.author(post);
   var text = Post.text(post);
-  var textDivs = Belt_Array.map(text, (function (x) {
+  var textDivs = Belt_Array.mapWithIndex(text, (function (i, x) {
           return React.createElement("p", {
+                      key: String(i),
                       className: "mb-1 text-sm"
                     }, x);
         }));
@@ -28,13 +60,15 @@ function PostFeed$PostItem(Props) {
                   className: "text-2xl mb-1"
                 }, title), React.createElement("h3", {
                   className: "mb-4"
-                }, author), textDivs, React.createElement("button", {
+                }, author), textDivs, React.createElement(Button.make, {
+                  text: "Remove this post",
                   className: "mr-4 mt-4 bg-red-500 hover:bg-red-900 text-white py-2 px-4",
-                  onClick: (function (_mouseEvt) {
-                      console.log("Remo");
+                  handleClick: (function (_mouseEvt) {
                       var timeoutId = setTimeout((function (param) {
-                              console.log("Remove");
-                              
+                              return Curry._1(dispatch, {
+                                          TAG: /* DeleteNow */2,
+                                          _0: post
+                                        });
                             }), 10000);
                       return Curry._1(dispatch, {
                                   TAG: /* DeleteLater */0,
@@ -42,7 +76,7 @@ function PostFeed$PostItem(Props) {
                                   _1: timeoutId
                                 });
                     })
-                }, "Remove this post"));
+                }));
 }
 
 var PostItem = {
@@ -61,25 +95,27 @@ function PostFeed$DeletePost(Props) {
                   className: "text-center white mb-1"
                 }, "This post from " + title + " by " + author + " will be permanently removed in 10 seconds."), React.createElement("div", {
                   className: "flex justify-center"
-                }, React.createElement("button", {
+                }, React.createElement(Button.make, {
+                      text: "Restore",
                       className: "mr-4 mt-4 bg-yellow-500 hover:bg-yellow-900 text-white py-2 px-4",
-                      onClick: (function (_mouseEvt) {
+                      handleClick: (function (_mouseEvt) {
                           clearTimeout(timeoutId);
                           return Curry._1(dispatch, {
                                       TAG: /* DeleteAbort */1,
                                       _0: post
                                     });
                         })
-                    }, "Restore"), React.createElement("button", {
+                    }), React.createElement(Button.make, {
+                      text: "Delete Immediately",
                       className: "mr-4 mt-4 bg-red-500 hover:bg-red-900 text-white py-2 px-4",
-                      onClick: (function (_mouseEvt) {
+                      handleClick: (function (_mouseEvt) {
                           clearTimeout(timeoutId);
                           return Curry._1(dispatch, {
                                       TAG: /* DeleteNow */2,
                                       _0: post
                                     });
                         })
-                    }, "Delete Immediately")), React.createElement("div", {
+                    })), React.createElement("div", {
                   className: "bg-red-500 h-2 w-full absolute top-0 left-0 progress"
                 }));
 }
@@ -87,26 +123,6 @@ function PostFeed$DeletePost(Props) {
 var DeletePost = {
   make: PostFeed$DeletePost
 };
-
-function reducer(state, action) {
-  switch (action.TAG | 0) {
-    case /* DeleteLater */0 :
-        var del = Belt_MapString.set(state.forDeletion, Post.id(action._0), action._1);
-        return {
-                posts: state.posts,
-                forDeletion: del
-              };
-    case /* DeleteAbort */1 :
-        var del$1 = Belt_MapString.remove(state.forDeletion, Post.id(action._0));
-        return {
-                posts: state.posts,
-                forDeletion: del$1
-              };
-    case /* DeleteNow */2 :
-        return state;
-    
-  }
-}
 
 var initialState = {
   posts: Post.examples,
@@ -135,7 +151,6 @@ function PostFeed(Props) {
                       });
           }
         }));
-  console.log(divs);
   return React.createElement("div", {
               className: "max-w-3xl mx-auto mt-8 relative"
             }, divs);
@@ -145,9 +160,9 @@ var make = PostFeed;
 
 export {
   s ,
+  reducer ,
   PostItem ,
   DeletePost ,
-  reducer ,
   initialState ,
   make ,
   
