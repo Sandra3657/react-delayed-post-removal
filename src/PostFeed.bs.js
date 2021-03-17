@@ -91,19 +91,17 @@ var DeletePost = {
 function reducer(state, action) {
   switch (action.TAG | 0) {
     case /* DeleteLater */0 :
-        var timeoutId = action._1;
-        var post = action._0;
-        console.log(timeoutId);
-        var del = Belt_MapString.set(state.forDeletion, Post.id(post), timeoutId);
-        var state_posts = state.posts;
-        var state$1 = {
-          posts: state_posts,
-          forDeletion: del
-        };
-        console.log(del);
-        console.log(Belt_MapString.get(del, Post.id(post)));
-        return state$1;
+        var del = Belt_MapString.set(state.forDeletion, Post.id(action._0), action._1);
+        return {
+                posts: state.posts,
+                forDeletion: del
+              };
     case /* DeleteAbort */1 :
+        var del$1 = Belt_MapString.remove(state.forDeletion, Post.id(action._0));
+        return {
+                posts: state.posts,
+                forDeletion: del$1
+              };
     case /* DeleteNow */2 :
         return state;
     

@@ -72,14 +72,15 @@ module DeletePost = {
 let reducer = (state, action) =>
   switch action {
   | DeleteLater(post, timeoutId) => {
-      Js.log(timeoutId)
       let del = state.forDeletion->Map.String.set(post->Post.id, timeoutId)
       let state = {...state, forDeletion: del}
-      Js.log(state.forDeletion)
-      Js.log(state.forDeletion->Map.String.get(post->Post.id))
       state
     }
-  | DeleteAbort(post) => state
+  | DeleteAbort(post) => {
+      let del = state.forDeletion->Map.String.remove(post->Post.id)
+      let state = {...state, forDeletion: del}
+      state
+    }
   | DeleteNow(post) => state
   }
 
