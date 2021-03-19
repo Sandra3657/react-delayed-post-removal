@@ -30,12 +30,11 @@ function reducer(state, action) {
     case /* DeleteNow */2 :
         var post = action._0;
         var forDeletion$2 = Belt_MapString.remove(state.forDeletion, Post.id(post));
-        var pos = state.posts.findIndex(function (item) {
-              return Caml_obj.caml_equal(item, post);
+        var posts = state.posts.filter(function (x) {
+              return Caml_obj.caml_notequal(x, post);
             });
-        state.posts.splice(pos, 1);
         return {
-                posts: state.posts,
+                posts: posts,
                 forDeletion: forDeletion$2
               };
     
@@ -44,7 +43,7 @@ function reducer(state, action) {
 
 function PostFeed$PostItem(Props) {
   var post = Props.post;
-  var dispatch = Props.dispatch;
+  var deleteNow = Props.deleteNow;
   var title = Post.title(post);
   var author = Post.author(post);
   var text = Post.text(post);
@@ -63,18 +62,8 @@ function PostFeed$PostItem(Props) {
                 }, author), textDivs, React.createElement(Button.make, {
                   text: "Remove this post",
                   className: "mr-4 mt-4 bg-red-500 hover:bg-red-900 text-white py-2 px-4",
-                  handleClick: (function (_mouseEvt) {
-                      var timeoutId = setTimeout((function (param) {
-                              return Curry._1(dispatch, {
-                                          TAG: /* DeleteNow */2,
-                                          _0: post
-                                        });
-                            }), 10000);
-                      return Curry._1(dispatch, {
-                                  TAG: /* DeleteLater */0,
-                                  _0: post,
-                                  _1: timeoutId
-                                });
+                  handleClick: (function (_evt) {
+                      return Curry._1(deleteNow, post);
                     })
                 }));
 }
@@ -85,7 +74,8 @@ var PostItem = {
 
 function PostFeed$DeletePost(Props) {
   var post = Props.post;
-  var dispatch = Props.dispatch;
+  var deleteLater = Props.deleteLater;
+  var deleteAbort = Props.deleteAbort;
   var timeoutId = Props.timeoutId;
   var title = Post.title(post);
   var author = Post.author(post);
@@ -98,22 +88,14 @@ function PostFeed$DeletePost(Props) {
                 }, React.createElement(Button.make, {
                       text: "Restore",
                       className: "mr-4 mt-4 bg-yellow-500 hover:bg-yellow-900 text-white py-2 px-4",
-                      handleClick: (function (_mouseEvt) {
-                          clearTimeout(timeoutId);
-                          return Curry._1(dispatch, {
-                                      TAG: /* DeleteAbort */1,
-                                      _0: post
-                                    });
+                      handleClick: (function (_evt) {
+                          return Curry._2(deleteLater, timeoutId, post);
                         })
                     }), React.createElement(Button.make, {
                       text: "Delete Immediately",
                       className: "mr-4 mt-4 bg-red-500 hover:bg-red-900 text-white py-2 px-4",
                       handleClick: (function (_mouseEvt) {
-                          clearTimeout(timeoutId);
-                          return Curry._1(dispatch, {
-                                      TAG: /* DeleteNow */2,
-                                      _0: post
-                                    });
+                          return Curry._2(deleteAbort, timeoutId, post);
                         })
                     })), React.createElement("div", {
                   className: "bg-red-500 h-2 w-full absolute top-0 left-0 progress"
@@ -133,20 +115,48 @@ function PostFeed(Props) {
   var match = React.useReducer(reducer, initialState);
   var dispatch = match[1];
   var state = match[0];
+  var deleteNow = function (post) {
+    var timeoutId = setTimeout((function (param) {
+            return Curry._1(dispatch, {
+                        TAG: /* DeleteNow */2,
+                        _0: post
+                      });
+          }), 10000);
+    return Curry._1(dispatch, {
+                TAG: /* DeleteLater */0,
+                _0: post,
+                _1: timeoutId
+              });
+  };
+  var deleteLater = function (timeoutId, post) {
+    clearTimeout(timeoutId);
+    return Curry._1(dispatch, {
+                TAG: /* DeleteAbort */1,
+                _0: post
+              });
+  };
+  var deleteAbort = function (timeoutId, post) {
+    clearTimeout(timeoutId);
+    return Curry._1(dispatch, {
+                TAG: /* DeleteNow */2,
+                _0: post
+              });
+  };
   var divs = Belt_Array.map(state.posts, (function (post) {
           var postId = Post.id(post);
           var deleteId = Belt_MapString.get(state.forDeletion, postId);
           if (deleteId !== undefined) {
             return React.createElement(PostFeed$DeletePost, {
                         post: post,
-                        dispatch: dispatch,
+                        deleteLater: deleteLater,
+                        deleteAbort: deleteAbort,
                         timeoutId: Caml_option.valFromOption(deleteId),
                         key: postId
                       });
           } else {
             return React.createElement(PostFeed$PostItem, {
                         post: post,
-                        dispatch: dispatch,
+                        deleteNow: deleteNow,
                         key: postId
                       });
           }

@@ -23,15 +23,15 @@ let reducer = (state, action) =>
     }
   | DeleteNow(post) => {
       let forDeletion = state.forDeletion->Map.String.remove(post->Post.id)
-      let pos = Js.Array.findIndex(item => item == post, state.posts)
-      let _ = Js.Array.removeCountInPlace(~pos, ~count=1, state.posts)
-      let state = {posts: state.posts, forDeletion: forDeletion}
+      let posts = Js.Array.filter(x => x != post, state.posts)
+      let state = {posts: posts, forDeletion: forDeletion}
       state
     }
   }
+
 module PostItem = {
   @react.component
-  let make = (~post, ~dispatch) => {
+  let make = (~post, ~deleteNow) => {
     let title = post->Post.title
     let author = post->Post.author
     let text = post->Post.text
@@ -47,12 +47,7 @@ module PostItem = {
       {React.array(textDivs)}
       <Button
         text="Remove this post"
-        handleClick={_mouseEvt => {
-          let timeoutId = Js.Global.setTimeout(() => {
-            dispatch(DeleteNow(post))
-          }, 10000)
-          dispatch(DeleteLater(post, timeoutId))
-        }}
+        handleClick={_evt => deleteNow(post)}
         className="mr-4 mt-4 bg-red-500 hover:bg-red-900 text-white py-2 px-4"
       />
     </div>
@@ -61,7 +56,7 @@ module PostItem = {
 
 module DeletePost = {
   @react.component
-  let make = (~post, ~dispatch, ~timeoutId) => {
+  let make = (~post, ~deleteLater, ~deleteAbort, ~timeoutId) => {
     let title = post->Post.title
     let author = post->Post.author
 
@@ -72,18 +67,12 @@ module DeletePost = {
       <div className="flex justify-center">
         <Button
           text="Restore"
-          handleClick={_mouseEvt => {
-            let _ = Js.Global.clearTimeout(timeoutId)
-            dispatch(DeleteAbort(post))
-          }}
+          handleClick={_evt => deleteLater(timeoutId, post)}
           className="mr-4 mt-4 bg-yellow-500 hover:bg-yellow-900 text-white py-2 px-4"
         />
         <Button
           text="Delete Immediately"
-          handleClick={_mouseEvt => {
-            let _ = Js.Global.clearTimeout(timeoutId)
-            dispatch(DeleteNow(post))
-          }}
+          handleClick={_mouseEvt => deleteAbort(timeoutId, post)}
           className="mr-4 mt-4 bg-red-500 hover:bg-red-900 text-white py-2 px-4"
         />
       </div>
@@ -98,12 +87,29 @@ let initialState = {posts: Post.examples, forDeletion: Map.String.empty}
 let make = () => {
   let (state, dispatch) = React.useReducer(reducer, initialState)
 
+  let deleteNow = post => {
+    let timeoutId = Js.Global.setTimeout(() => {
+      dispatch(DeleteNow(post))
+    }, 10000)
+    dispatch(DeleteLater(post, timeoutId))
+  }
+
+  let deleteLater = (timeoutId, post) => {
+    let _ = Js.Global.clearTimeout(timeoutId)
+    dispatch(DeleteAbort(post))
+  }
+
+  let deleteAbort = (timeoutId, post) => {
+    let _ = Js.Global.clearTimeout(timeoutId)
+    dispatch(DeleteNow(post))
+  }
+
   let divs = state.posts->Belt.Array.map(post => {
     let postId = post->Post.id
     let deleteId = state.forDeletion->Map.String.get(postId)
     let div = switch deleteId {
-    | None => <PostItem key={postId} post dispatch />
-    | Some(timeoutId) => <DeletePost key={postId} post dispatch timeoutId />
+    | None => <PostItem key={postId} post deleteNow />
+    | Some(timeoutId) => <DeletePost key={postId} post deleteAbort deleteLater timeoutId />
     }
     div
   })
